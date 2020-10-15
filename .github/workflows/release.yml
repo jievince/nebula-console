@@ -22,7 +22,6 @@ jobs:
         exclude:
           - os: darwin
             arch: arm
-
     steps:
       - uses: actions/checkout@v2
         with:
@@ -31,8 +30,16 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.14
+      - name: set package name
+        id: name
+        run: |
+          output_name=nebula-console-${{ matrix.os }}-${{ matrix.arch }}
+          if [ "${{ matrix.os }}" = "windows"  ]; then
+              output_name+='.exe'
+          fi
+          echo "::set-output name=package_name::$output_name"
       - name: build
-        run: make
+        run: go build -o ${{ steps.name.outputs.package_name }}
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
@@ -42,35 +49,21 @@ jobs:
           SHA_EXT: sha256sum.txt
         run: |
           tag=$(echo ${{ github.ref }} | rev | cut -d/ -f1 | rev)
-          filepath=$(find . -type f \( -iname nebula-console \))
-          sha256sum $filename > $filename.$SHA_EXT
+          filename=$(find . -type f \( -iname nebula-console-${{ matrix.os }}-${{ matrix.arch }}\* \) -exec basename {} \; )
+          sha256sum $filename > "$filename"."$SHA_EXT"
           echo "::set-output name=tag::$tag"
           echo "::set-output name=filepath::$filename"
           echo "::set-output name=shafilepath::$filename.$SHA_EXT"
       - name: upload release asset
         run: |
-          ./ci/scripts/upload-github-release-asset.sh \
+          ./scripts/upload-github-release-asset.sh \
             github_token=${{ secrets.GITHUB_TOKEN }} \
             repo=${{ github.repository }} \
             tag=${{ steps.vars.outputs.tag }} \
             filepath=${{ steps.vars.outputs.filepath }}
-          ./ci/scripts/upload-github-release-asset.sh \
+          ./scripts/upload-github-release-asset.sh \
             github_token=${{ secrets.GITHUB_TOKEN }} \
             repo=${{ github.repository }} \
-            tag=${{ steps.vars.outputs.tag }} \
-            filepath=${{ steps.vars.outputs.shafilepath }}
-      - name: upload package to oss
-        run: |
-          ./ci/scripts/upload-oss.sh \
-            OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }} \
-            OSS_ID=${{ secrets.OSS_ID }} \
-            OSS_SECRET=${{ secrets.OSS_SECRET }} \
-            tag=${{ steps.vars.outputs.tag }} \
-            filepath=${{ steps.vars.outputs.filepath }}
-          ./ci/scripts/upload-oss.sh \
-            OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }} \
-            OSS_ID=${{ secrets.OSS_ID }} \
-            OSS_SECRET=${{ secrets.OSS_SECRET }} \
             tag=${{ steps.vars.outputs.tag }} \
             filepath=${{ steps.vars.outputs.shafilepath }}
 
@@ -87,5 +80,5 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
           repository: ${{ secrets.DOCKER_USERNAME }}/nebula-console
-          tags: v2-preview-nightly
+          tags: latest
           add_git_labels: true
