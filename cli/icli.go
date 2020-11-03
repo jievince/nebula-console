@@ -7,9 +7,11 @@
 package cli
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/dutor/liner"
 	"github.com/vesoft-inc/nebula-console/completer"
@@ -23,6 +25,9 @@ type iCli struct {
 
 func NewiCli(historyFile, user string) Cli {
 	c := liner.NewLiner()
+	isSupported := liner.TerminalSupported()
+	fmt.Println("Does current terminal supports line editing features?", isSupported)
+	fmt.Println("Current terminal TERM: ", strings.ToLower(os.Getenv("TERM")))
 	c.SetCtrlCAborts(true)
 	// Two tab styles are currently available:
 	// 1.TabCircular cycles through each completion item and displays it directly on
